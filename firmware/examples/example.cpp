@@ -35,10 +35,10 @@ void setup()
 
 void loop()
 {
+	static bool run = false;
     if (Serial.available()) {
         char c = Serial.read();
         if (c=='t') {
-		    static bool run = false;
             if (!run) {
                 Serial.println("Running tests");
                 run = true;
