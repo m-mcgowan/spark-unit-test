@@ -39,12 +39,16 @@ feature is described in the [Arduino unit documentation](https://github.com/mmur
 
 To exclude tests ending "*_slow":
 
- `spark call mycore cmd exclude=*_slow`
+```
+spark call mycore cmd exclude=*_slow
+```
 
 To run only tests starting with 'abc':
 
- `spark call mycore cmd exclude=*`
- `spark call mycore cmd include=abc*`
+```
+spark call mycore cmd exclude=*
+spark call mycore cmd include=abc*
+```
 
 
 Starting the Test Suite
@@ -52,7 +56,7 @@ Starting the Test Suite
 If the test code hasn't requested the test suite starts immediately, the test suite
 will wait until:
 
-- a 't' is sent over Serial
+- a 't' is sent over Serial, or
 - the `cmd(start)` function is called.
 
 E.g. to start the tests via the cloud:
