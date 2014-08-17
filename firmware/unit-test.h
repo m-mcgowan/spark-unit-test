@@ -1564,14 +1564,6 @@ bool isStartRequested(bool runImmediately) {
     return false;
 }
 
-void enterDFU() {
-    FLASH_OTA_Update_SysFlag = 0x0000;
-    Save_SystemFlags();
-    BKP_WriteBackupRegister(BKP_DR10, 0x0000);
-    USB_Cable_Config(DISABLE);
-    NVIC_SystemReset();
-}
-
 /*
  * A convenience method to run tests as part of the main loop after a character
  * is received over serial.
@@ -1579,7 +1571,7 @@ void enterDFU() {
 void unit_test_loop(bool runImmediately=false)
 {       
     if (_enterDFU)
-        enterDFU();
+        System.bootloader();
     
     if (!_runner.isStarted() && isStartRequested(runImmediately)) {
         Serial.println("Running tests");
@@ -1601,10 +1593,9 @@ int SparkTestRunner::testStatusColor() {
 }
 
 int testCmd(String arg) {
-    int result = -1;
+    result = 0;
     if (arg.equals("start")) {
         requestStart = true;
-        result = 0;
     }
     else if (arg.startsWith("exclude=")) {
         String pattern = arg.substring(8);
@@ -1617,6 +1608,8 @@ int testCmd(String arg) {
     else if (arg.equals("enterDFU")) {
         _enterDFU = true;
     }
+    else 
+        result = -1;
     return result;
 }
 
