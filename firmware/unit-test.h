@@ -31,6 +31,85 @@
 #define PROGMEM
 #define PSTR
 
+enum RunnerState {
+    INIT,
+    WAITING,
+    RUNNING,
+    COMPLETE
+};
+
+class SparkTestRunner {
+    
+private:
+    int _state;
+    
+public:
+    SparkTestRunner() : _state(INIT) {
+        
+    }
+    
+    void begin();        
+    
+    bool isStarted() {
+        return _state>=RUNNING;
+    }
+    
+    void start() {
+        if (!isStarted())
+            setState(RUNNING);
+    }
+    
+    const char* nameForState(RunnerState state) {
+        switch (state) {
+            case INIT: return "init";
+            case WAITING: return "waiting";
+            case RUNNING: return "running";
+            case COMPLETE: return "complete";
+            default:
+                return "";
+        }
+    }
+        
+    int testStatusColor();
+    
+    void updateLEDStatus() {
+        int rgb = testStatusColor();
+        RGB.control(true);
+        //RGB.color(rgb);
+        LED_SetSignalingColor(rgb);
+        LED_On(LED_RGB);
+    }
+    
+    RunnerState state() const { return (RunnerState)_state; }
+    void setState(RunnerState newState) {
+        if (newState!=_state) {            
+            _state = newState;
+            const char* stateName = nameForState((RunnerState)_state);
+            if (isStarted())
+                updateLEDStatus();
+            Spark.publish("state", stateName);
+        }
+    }
+    
+    void testDone() {        
+        updateLEDStatus();
+        delay(500);
+    }
+};
+
+SparkTestRunner _runner;
+
+
+
+#define UNIT_TEST_SETUP() \
+    void setup() { unit_test_setup(); }
+
+#define UNIT_TEST_LOOP() \
+    void loop() { unit_test_loop(); }
+
+#define UNIT_TEST_APP() \
+    UNIT_TEST_SETUP(); UNIT_TEST_LOOP();
+
 
 /*
 Copyright (c) 2014 Matt Paine
@@ -776,6 +855,8 @@ Variables you might want to adjust:
 */
 class Test
 {
+    friend class SparkTestRunner;
+    
  private:
   // allows for both ram/progmem based names
   class TestString : public Printable {
@@ -795,10 +876,10 @@ class Test
   Test *next;
 
   // static statistics for tests
-  static uint16_t passed;
-  static uint16_t failed;
-  static uint16_t skipped;
-  static uint16_t count;
+  static uint32_t passed;
+  static uint32_t failed;
+  static uint32_t skipped;
+  static uint32_t count;
 
   void resolve();
   void remove();
@@ -1265,10 +1346,10 @@ bool Test::TestString::matches(const char *pattern) const {
 Test* Test::root = 0;
 Test* Test::current = 0;
 
-uint16_t Test::count = 0;
-uint16_t Test::passed = 0;
-uint16_t Test::failed = 0;
-uint16_t Test::skipped = 0;
+uint32_t Test::count = 0;
+uint32_t Test::passed = 0;
+uint32_t Test::failed = 0;
+uint32_t Test::skipped = 0;
 uint8_t Test::max_verbosity = TEST_VERBOSITY_ALL;
 uint8_t Test::min_verbosity = TEST_VERBOSITY_TESTS_SUMMARY;
 
@@ -1285,6 +1366,8 @@ void Test::resolve()
     if (pass) ++Test::passed;
     if (fail) ++Test::failed;
     if (skip) ++Test::skipped;
+    
+    _runner.testDone();
 
 #if TEST_VERBOSITY_EXISTS(TESTS_SKIPPED) || TEST_VERBOSITY_EXISTS(TESTS_PASSED) || TEST_VERBOSITY_EXISTS(TESTS_FAILED)
 
@@ -1322,7 +1405,7 @@ void Test::resolve()
     out->print(F(" skipped, out of "));
     out->print(count);
     out->println(F(" test(s)."));
-  }
+  }  
 #endif
 }
 
@@ -1365,6 +1448,8 @@ void Test::setup() {};
 
 void Test::run()
 {
+  _runner.setState(root ? RUNNING : COMPLETE);
+  
   for (Test **p = &root; (*p) != 0; ) {
     current = *p;
 
@@ -1383,6 +1468,7 @@ void Test::run()
     } else {
       p=&((*p)->next);
     }
+    break;  // allow main loop to execute
   }
 }
 
@@ -1453,4 +1539,93 @@ bool isMore<const char*>(const char* const &a, const char* const &b)
   return (strcmp(a,b) > 0);
 }
 
+/**
+ * A convenience method to setup serial.
+ */
+void unit_test_setup()
+{
+    Serial.begin(9600);
+    _runner.begin();
+}
 
+bool requestStart = false;
+bool _enterDFU = false;
+
+bool isStartRequested(bool runImmediately) {
+    if (runImmediately || requestStart)
+        return true;
+    if (Serial.available()) {
+        char c = Serial.read();
+        if (c=='t') {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+void enterDFU() {
+    FLASH_OTA_Update_SysFlag = 0x0000;
+    Save_SystemFlags();
+    BKP_WriteBackupRegister(BKP_DR10, 0x0000);
+    USB_Cable_Config(DISABLE);
+    NVIC_SystemReset();
+}
+
+/*
+ * A convenience method to run tests as part of the main loop after a character
+ * is received over serial.
+ **/
+void unit_test_loop(bool runImmediately=false)
+{       
+    if (_enterDFU)
+        enterDFU();
+    
+    if (!_runner.isStarted() && isStartRequested(runImmediately)) {
+        Serial.println("Running tests");
+        _runner.start();
+    }
+    
+    if (_runner.isStarted()) {
+        Test::run();
+    }
+}
+
+int SparkTestRunner::testStatusColor() {
+    if (Test::failed>0)
+        return RGB_COLOR_RED;
+    else if (Test::skipped>0)
+        return RGB_COLOR_ORANGE;
+    else
+        return RGB_COLOR_GREEN;
+}
+
+int testCmd(String arg) {
+    int result = -1;
+    if (arg.equals("start")) {
+        requestStart = true;
+        result = 0;
+    }
+    else if (arg.startsWith("exclude=")) {
+        String pattern = arg.substring(8);
+        Test::exclude(pattern.c_str());
+    }
+    else if (arg.startsWith("include=")) {
+        String pattern = arg.substring(8);
+        Test::include(pattern.c_str());
+    }
+    else if (arg.equals("enterDFU")) {
+        _enterDFU = true;
+    }
+    return result;
+}
+
+void SparkTestRunner::begin() {    
+    Spark.variable("passed", &Test::passed, INT);
+    Spark.variable("failed", &Test::failed, INT);
+    Spark.variable("skipped", &Test::skipped, INT);
+    Spark.variable("count", &Test::count, INT);
+    Spark.variable("state", &_state, INT);
+    Spark.function("cmd", testCmd);
+    setState(WAITING);
+}

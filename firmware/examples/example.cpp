@@ -28,24 +28,4 @@ test(HelloWorld) {
 	assertNotEqual("Hello", "World");
 }
 
-void setup()
-{
-	Serial.begin(9600);
-}
-
-void loop()
-{
-	static bool run = false;
-    if (Serial.available()) {
-        char c = Serial.read();
-        if (c=='t') {
-            if (!run) {
-                Serial.println("Running tests");
-                run = true;
-            }
-        }
-    }
-    if (run) {
-        Test::run();
-    }
-}
+UNIT_TEST_APP()
