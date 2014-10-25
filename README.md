@@ -66,7 +66,7 @@ E.g. to start the tests via the cloud:
 
 Enter DFU Mode
 --------------
-As part of a locally operating automated tset suite, it can be useful to 
+As part of a locally operating automated test suite, it can be useful to 
 put the core in DFU mode for quick flashing of another app.
 
 This is done with the command
