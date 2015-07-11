@@ -1,3 +1,5 @@
+#include "application.h"
+
 #pragma once
 /**
  * Copyright 2014  Matthew McGowan
@@ -39,26 +41,26 @@ enum RunnerState {
 };
 
 class SparkTestRunner {
-    
+
 private:
     int _state;
-    
+
 public:
     SparkTestRunner() : _state(INIT) {
-        
+
     }
-    
-    void begin();        
-    
+
+    void begin();
+
     bool isStarted() {
         return _state>=RUNNING;
     }
-    
+
     void start() {
         if (!isStarted())
             setState(RUNNING);
     }
-    
+
     const char* nameForState(RunnerState state) {
         switch (state) {
             case INIT: return "init";
@@ -69,9 +71,9 @@ public:
                 return "";
         }
     }
-        
+
     int testStatusColor();
-    
+
     void updateLEDStatus() {
         int rgb = testStatusColor();
         RGB.control(true);
@@ -79,10 +81,10 @@ public:
         LED_SetSignalingColor(rgb);
         LED_On(LED_RGB);
     }
-    
+
     RunnerState state() const { return (RunnerState)_state; }
     void setState(RunnerState newState) {
-        if (newState!=_state) {            
+        if (newState!=_state) {
             _state = newState;
             const char* stateName = nameForState((RunnerState)_state);
             if (isStarted())
@@ -90,8 +92,8 @@ public:
             Spark.publish("state", stateName);
         }
     }
-    
-    void testDone() {        
+
+    void testDone() {
         updateLEDStatus();
         delay(500);
     }
@@ -856,7 +858,7 @@ Variables you might want to adjust:
 class Test
 {
     friend class SparkTestRunner;
-    
+
  private:
   // allows for both ram/progmem based names
   class TestString : public Printable {
@@ -1366,7 +1368,7 @@ void Test::resolve()
     if (pass) ++Test::passed;
     if (fail) ++Test::failed;
     if (skip) ++Test::skipped;
-    
+
     _runner.testDone();
 
 #if TEST_VERBOSITY_EXISTS(TESTS_SKIPPED) || TEST_VERBOSITY_EXISTS(TESTS_PASSED) || TEST_VERBOSITY_EXISTS(TESTS_FAILED)
@@ -1405,7 +1407,7 @@ void Test::resolve()
     out->print(F(" skipped, out of "));
     out->print(count);
     out->println(F(" test(s)."));
-  }  
+  }
 #endif
 }
 
@@ -1449,7 +1451,7 @@ void Test::setup() {};
 void Test::run()
 {
   _runner.setState(root ? RUNNING : COMPLETE);
-  
+
   for (Test **p = &root; (*p) != 0; ) {
     current = *p;
 
@@ -1560,7 +1562,7 @@ bool isStartRequested(bool runImmediately) {
             return true;
         }
     }
-    
+
     return false;
 }
 
@@ -1569,15 +1571,15 @@ bool isStartRequested(bool runImmediately) {
  * is received over serial.
  **/
 void unit_test_loop(bool runImmediately=false)
-{       
+{
     if (_enterDFU)
         System.bootloader();
-    
+
     if (!_runner.isStarted() && isStartRequested(runImmediately)) {
         Serial.println("Running tests");
         _runner.start();
     }
-    
+
     if (_runner.isStarted()) {
         Test::run();
     }
@@ -1593,7 +1595,7 @@ int SparkTestRunner::testStatusColor() {
 }
 
 int testCmd(String arg) {
-    result = 0;
+    int result = 0;
     if (arg.equals("start")) {
         requestStart = true;
     }
@@ -1608,12 +1610,12 @@ int testCmd(String arg) {
     else if (arg.equals("enterDFU")) {
         _enterDFU = true;
     }
-    else 
+    else
         result = -1;
     return result;
 }
 
-void SparkTestRunner::begin() {    
+void SparkTestRunner::begin() {
     Spark.variable("passed", &Test::passed, INT);
     Spark.variable("failed", &Test::failed, INT);
     Spark.variable("skipped", &Test::skipped, INT);
