@@ -1593,7 +1593,7 @@ bool isStartRequested(bool runImmediately) {
 void unit_test_loop(bool runImmediately=false)
 {       
     if (_enterDFU)
-        System.bootloader();
+        System.dfu();
     
     if (!_runner.isStarted() && isStartRequested(runImmediately)) {
         Serial.println("Running tests");
