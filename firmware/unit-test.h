@@ -21,15 +21,37 @@
  header.
 */
 
-
+#ifndef strcpy_P
 #define strcpy_P strcpy
+#endif
+
+#ifndef stricpy_P
 #define strlcpy_P strncpy
+#endif
+
+#ifdef sprintf_P
 #define sprintf_P sprintf
+#endif
+
+#ifndef strcmp_P
 #define strcmp_P strcmp
+#endif
+
+#ifndef memcpy_P
 #define memcpy_P memcpy
+#endif
+
+#ifndef vsnprintf_P
 #define vsnprintf_P vsnprintf
+#endif
+#ifndef PROGMEM
 #define PROGMEM
+#endif
+
+#ifndef PSTR
 #define PSTR
+#endif
+
 
 enum RunnerState {
     INIT,
