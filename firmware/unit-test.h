@@ -1615,7 +1615,7 @@ int SparkTestRunner::testStatusColor() {
 }
 
 int testCmd(String arg) {
-    result = 0;
+    int result = 0;
     if (arg.equals("start")) {
         requestStart = true;
     }
